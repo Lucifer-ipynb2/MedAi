@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
-const OPENROUTER_API_KEY = "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";
+const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 
 const MEDICAL_SYSTEM = `You are MedAI - an advanced medical AI assistant. Help users with:
 - Medical information about diseases, symptoms, medications
@@ -62,61 +64,63 @@ Who should avoid
 
 Always recommend consulting pharmacist/doctor.`;
 
-async function callAI(messages, systemPrompt, onStream) {
+async function callAI(messages, systemPrompt,onStream) {
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
       "HTTP-Referer": "https://medai.health",
-      "X-Title": "MedAI Health Assistant",
+      "X-OpenRouter-Title": "MedAI Health Assistant",
     },
     body: JSON.stringify({
-      model: "anthropic/claude-3.5-sonnet",
+      model: "stepfun/step-3.5-flash:free",
       messages: [{ role: "system", content: systemPrompt }, ...messages],
       max_tokens: 2000,
       temperature: 0.3,
       stream: true,
     }),
   });
-
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err);
+  }
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
+
+  let buffer = "";
   let full = "";
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    const chunk = decoder.decode(value);
-    const lines = chunk.split("\n").filter((l) => l.startsWith("data: "));
+
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split("\n");
+    buffer = lines.pop(); // keep incomplete line
+
     for (const line of lines) {
-      const data = line.slice(6);
-      if (data === "[DONE]") continue;
+      if (!line.startsWith("data: ")) continue;
+
+      const data = line.slice(6).trim();
+
+      if (data === "[DONE]") return full;
+
       try {
         const parsed = JSON.parse(data);
-        const delta = parsed.choices?.[0]?.delta?.content || "";
-        full += delta;
+        const delta = parsed.choices?.[0]?.delta?.content;
+        if (delta) full += delta;
         onStream(full);
-      } catch {}
+      } catch (err) {
+        console.error("Parse error:", err);
+        full += err;
+        onStream(full);
+      }
     }
   }
-  return full;
-}
 
-function MarkdownRenderer({ text }) {
-  const renderMarkdown = (t) => {
-    if (!t) return "";
-    return t
-      .replace(/^### (.*)/gm, '<h3 style="color:#00d4ff;font-size:1rem;font-weight:700;margin:1rem 0 0.4rem;letter-spacing:0.05em;">$1</h3>')
-      .replace(/^## (.*)/gm, '<h2 style="color:#7effd4;font-size:1.1rem;font-weight:700;margin:1.2rem 0 0.5rem;border-bottom:1px solid rgba(126,255,212,0.2);padding-bottom:0.3rem;">$1</h2>')
-      .replace(/^# (.*)/gm, '<h1 style="color:#fff;font-size:1.3rem;font-weight:800;margin:1rem 0 0.5rem;">$1</h1>')
-      .replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffd700;font-weight:700;">$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em style="color:#b8e8ff;">$1</em>')
-      .replace(/`(.*?)`/g, '<code style="background:rgba(0,212,255,0.15);color:#00d4ff;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.85rem;">$1</code>')
-      .replace(/^[-•] (.*)/gm, '<div style="display:flex;gap:0.5rem;margin:0.2rem 0;"><span style="color:#00d4ff;">▸</span><span>$1</span></div>')
-      .replace(/\n\n/g, '<div style="height:0.7rem"></div>')
-      .replace(/\n/g, "<br/>");
-  };
-  return <div dangerouslySetInnerHTML={{ __html: renderMarkdown(text) }} style={{ lineHeight: 1.7, fontSize: "0.93rem" }} />;
+  return full;
 }
 
 const TABS = [
@@ -337,7 +341,9 @@ export default function MedAI() {
                   ) : m.role === "user" ? (
                     <span>{m.content}</span>
                   ) : (
-                    <MarkdownRenderer text={m.content} />
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {m.content}
+                    </ReactMarkdown>
                   )}
                 </div>
               ))}
@@ -425,7 +431,9 @@ export default function MedAI() {
                   {isLoading && !symptomResult ? (
                     <div style={styles.loading}>{[0,1,2].map(j => <div key={j} style={styles.dot(j)} />)}</div>
                   ) : (
-                    <MarkdownRenderer text={symptomResult} />
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {symptomResult}
+                    </ReactMarkdown>
                   )}
                 </div>
               </div>
@@ -469,7 +477,9 @@ export default function MedAI() {
                   {isLoading && !drugResult ? (
                     <div style={styles.loading}>{[0,1,2].map(j => <div key={j} style={styles.dot(j)} />)}</div>
                   ) : (
-                    <MarkdownRenderer text={drugResult} />
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {drugResult}
+                    </ReactMarkdown>
                   )}
                 </div>
               </div>
