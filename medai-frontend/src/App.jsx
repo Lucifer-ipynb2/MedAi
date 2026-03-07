@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
+const MODEL = "stepfun/step-3.5-flash:free";
 
 const MEDICAL_SYSTEM = `You are MedAI - an advanced medical AI assistant. Help users with:
 - Medical information about diseases, symptoms, medications
@@ -74,7 +75,7 @@ async function callAI(messages, systemPrompt,onStream) {
       "X-OpenRouter-Title": "MedAI Health Assistant",
     },
     body: JSON.stringify({
-      model: "stepfun/step-3.5-flash:free",
+      model: MODEL,
       messages: [{ role: "system", content: systemPrompt }, ...messages],
       max_tokens: 2000,
       temperature: 0.3,
@@ -329,7 +330,7 @@ export default function MedAI() {
           <div style={styles.card}>
             <div style={styles.sectionTitle}>
               <span>💬</span> Chat with AI Doctor
-              <span style={{ marginLeft: "auto", fontSize: "0.75rem", color: "#5a7a9a" }}>claude-3.5-sonnet</span>
+              <span style={{ marginLeft: "auto", fontSize: "0.75rem", color: "#5a7a9a" }}>{MODEL}</span>
             </div>
             <div style={styles.chatBox}>
               {chatMessages.map((m, i) => (
