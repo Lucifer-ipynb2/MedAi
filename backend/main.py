@@ -16,8 +16,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-OPENROUTER_API_KEY = "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"
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 MEDICAL_SYSTEM_PROMPT = """You are MedAI - an advanced medical AI assistant. You help users with:
 1. Medical information about diseases, symptoms, medications
