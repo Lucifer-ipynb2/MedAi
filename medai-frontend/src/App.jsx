@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
-const MODEL = "stepfun/step-3.5-flash:free";
+const MODEL = "stepfun/step-3.5-flash";
 
 const MEDICAL_SYSTEM = `You are MedAI - an advanced medical AI assistant. Help users with:
 - Medical information about diseases, symptoms, medications
@@ -62,7 +62,7 @@ async function callAI(messages, systemPrompt, onStream) {
     body: JSON.stringify({
       model: MODEL,
       messages: [{ role: "system", content: systemPrompt }, ...messages],
-      max_tokens: 2000,
+      max_tokens: 1000,
       temperature: 0.3,
       stream: true,
     }),
